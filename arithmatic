@@ -1,0 +1,142 @@
+#include <iostream>
+#include <bitset>
+#include <cmath>
+
+using namespace std;
+
+class FloatingPoint16 {
+private:
+    bitset<16> bits;
+    static constexpr int exponentBits = 5;
+    static constexpr int fractionBits = 10;
+    static constexpr int bias = pow(2, exponentBits - 1) - 1;
+public:
+    FloatingPoint16(float value) {
+        int sign = value < 0 ? 1 : 0;
+        float absValue = abs(value);
+        int exponent = 0;
+        float fraction = absValue;
+
+        if (absValue >= 2.0) {
+            while (absValue >= 2.0) {
+                absValue /= 2.0;
+                exponent++;
+            }
+        }
+        else if (absValue < 1.0) {
+            while (absValue < 1.0) {
+                absValue *= 2.0;
+                exponent--;
+            }
+        }
+
+        fraction = (absValue - 1.0) * pow(2, fractionBits);
+
+        exponent += bias;
+
+        if (exponent >= pow(2, exponentBits) - 1) {
+            exponent = pow(2, exponentBits) - 1;
+            fraction = 0;
+        }
+
+        bits.set(0, sign);
+        for (int i = 0; i < exponentBits; i++) {
+            bits.set(i + 1, ((exponent >> (exponentBits - 1 - i)) & 1));
+        }
+        for (int i = 0; i < fractionBits; i++) {
+            bits.set(i + exponentBits + 1, ((int(fraction) >> (fractionBits - 1 - i)) & 1));
+        }
+    }
+
+    float toFloat() {
+        int sign = bits[0] ? -1 : 1;
+        int exponent = 0;
+        float fraction = 1.0;
+
+        for (int i = 0; i < exponentBits; i++) {
+            exponent += bits[i + 1] * pow(2, exponentBits - 1 - i);
+        }
+
+        for (int i = 0; i < fractionBits; i++) {
+            fraction += bits[i + exponentBits + 1] * pow(2, -(i + 1));
+        }
+
+        if (exponent == pow(2, exponentBits) - 1) {
+            if (fraction != 0) {
+                return NAN;
+            }
+            else {
+                return sign == 1 ? INFINITY : -INFINITY;
+            }
+        }
+        else if (exponent == 0) {
+            return sign * fraction * pow(2, -bias + 1);
+        }
+        else {
+            return sign * fraction * pow(2, exponent - bias);
+        }
+    }
+
+    friend FloatingPoint16 operator+(FloatingPoint16 a, FloatingPoint16 b);
+    friend FloatingPoint16 operator-(FloatingPoint16 a, FloatingPoint16 b);
+    friend FloatingPoint16 operator*(FloatingPoint16 a, FloatingPoint16 b);
+    friend FloatingPoint16 operator/(FloatingPoint16 a, FloatingPoint16 b);
+
+    friend ostream& operator<<(ostream& os, FloatingPoint16 fp16);
+};
+
+FloatingPoint16 operator+(FloatingPoint16 a, FloatingPoint16 b) {
+    float aFloat = a.toFloat();
+    float bFloat = b.toFloat();
+    float result = aFloat + bFloat;
+    return FloatingPoint16(result);
+}
+FloatingPoint16 operator-(FloatingPoint16 a, FloatingPoint16 b) {
+float aFloat = a.tofloat();
+float bFloat = b.toFloat();
+float result = aFloat - bFloat;
+return FloatingPoint16(result);
+}
+
+FloatingPoint16 operator*(FloatingPoint16 a, FloatingPoint16 b) {
+float aFloat = a.toFloat();
+float bFloat = b.toFloat();
+float result = aFloat * bFloat;
+return FloatingPoint16(result);
+}
+
+FloatingPoint16 operator/(FloatingPoint16 a, FloatingPoint16 b) {
+float aFloat = a.toFloat();
+float bFloat = b.toFloat();
+float result = aFloat / bFloat;
+return FloatingPoint16(result);
+}
+
+ostream& operator<<(ostream& os, FloatingPoint16 fp16) {
+os << fp16.toFloat();
+return os;
+}
+
+Float16 multiply(Float16 a, Float16 b) {
+    Float16 result;
+    // TODO: implement multiplication
+    return result;
+}
+
+Float16 divide(Float16 a, Float16 b) {
+    Float16 result;
+    // TODO: implement division
+    return result;
+}
+
+Float16 convert_float32_to_float16(float f) {
+    Float16 result;
+    // TODO: implement conversion
+    return result;
+}
+
+float convert_float16_to_float32(Float16 f) {
+    float result;
+    // TODO: implement conversion
+    return result;
+}
