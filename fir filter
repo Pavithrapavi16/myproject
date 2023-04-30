@@ -1,0 +1,169 @@
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include <algorithm>
+#include <fstream>
+#include "floatingpoint16.h"
+
+using namespace std;
+
+constexpr float pi = 3.14159265358979323846f;
+
+void generateSignal(vector<float>& signal, float sampleRate, float f1, float f2, float f3, float duration) {
+    int numSamples = int(sampleRate * duration);
+    signal.resize(numSamples);
+
+    for (int i = 0; i < numSamples; i++) {
+        signal[i] = sin(2.0 * pi * f1 * i / sampleRate) + sin(2.0 * pi * f2 * i / sampleRate) + sin(2.0 * pi * f3 * i / sampleRate);
+    }
+}
+
+void designFIRFilter(vector<float>& filter, float sampleRate, float cutoffFrequency, int numTaps) {
+    filter.resize(numTaps);
+
+    float omegaC = 2.0 * pi * cutoffFrequency / sampleRate;
+
+    for (int i = 0; i < numTaps; i++) {
+        if (i == numTaps / 2) {
+            filter[i] = omegaC / pi;
+        }
+        else {
+            filter[i] = sin(omegaC * (i - numTaps / 2)) / (pi * (i - numTaps / 2));
+        }
+        filter[i] *= 0.54 - 0.46 * cos(2.0 * pi * i / (numTaps - 1));
+    }
+
+    float sum = 0.0;
+    for (int i = 0; i < numTaps; i++) {
+        sum += filter[i];
+    }
+
+    for (int i = 0; i < numTaps; i++) {
+        filter[i] /= sum;
+    }
+}
+
+void applyFilter(vector<float>& signal, vector<float>& filter) {
+    int numSamples = signal.size();
+    int numTaps = filter.size();
+    vector<float> temp(numSamples + numTaps - 1);
+
+    for (int i = 0; i < numSamples + numTaps - 1; i++) {
+        float sum = 0.0;
+        for (int j = 0; j < numTaps; j++) {
+            int k = i - j;
+            if (k >= 0 && k < numSamples) {
+                sum += signal[k] * filter[j];
+            }
+        }
+        temp[i] = sum;
+    }
+
+    signal = temp;
+}
+
+int main() {
+    float sampleRate = 44100.0;
+    float duration = 1.0;
+    float f1 = 100.0;
+    float f2 = 1000.0;
+float f3 = 2000.0;
+// Generate signal
+vector<float> signal;
+generateSignal(signal, sampleRate, f1, f2, f3, duration);
+
+// Design FIR filter
+int numTaps = 101;
+float cutoffFrequency = f3;
+vector<float> filter;
+designFIRFilter(filter, sampleRate, cutoffFrequency, numTaps);
+
+// Apply filter
+applyFilter(signal, filter);
+
+// Save filtered signal to file
+ofstream file("filtered_signal_float32.dat");
+for (float sample : signal) {
+    file << sample << "\n";
+}
+file.close();
+
+// Compute FFT of filtered signal
+int N = signal.size();
+vector<float> signalReal(N);
+vector<float> signalImag(N);
+for (int i = 0; i < N; i++) {
+    signalReal[i] = signal[i];
+    signalImag[i] = 0.0;
+}
+FFT(signalReal, signalImag);
+
+// Compute magnitude spectrum of filtered signal
+vector<float> magnitude(N/2);
+for (int i = 0; i < N/2; i++) {
+    magnitude[i] = sqrt(signalReal[i]*signalReal[i] + signalImag[i]*signalImag[i]) / N;
+}
+
+// Save magnitude spectrum to file
+file.open("magnitude_spectrum_float32.dat");
+for (float value : magnitude) {
+    file << value << "\n";
+}
+file.close();
+
+// Test 16-bit floating point arithmetic
+FloatingPoint16::setExponentBias(15);
+FloatingPoint16 a(0.1f);
+FloatingPoint16 b(0.2f);
+FloatingPoint16 c(0.3f);
+
+cout << "a = " << a << ", b = " << b << ", c = " << c << endl;
+cout << "a + b = " << a + b << endl;
+cout << "a - b = " << a - b << endl;
+cout << "a * b = " << a * b << endl;
+cout << "a / b = " << a / b << endl;
+cout << "a + c = " << a + c << endl;
+cout << "a - c = " << a - c << endl;
+cout << "a * c = " << a * c << endl;
+cout << "a / c = " << a / c << endl;
+
+// Generate signal using 16-bit floating point arithmetic
+vector<FloatingPoint16> signal16;
+generateSignal(signal16, sampleRate, f1, f2, f3, duration);
+
+// Design FIR filter using 16-bit floating point arithmetic
+vector<FloatingPoint16> filter16;
+designFIRFilter(filter16, sampleRate, cutoffFrequency, numTaps);
+
+// Apply filter using 16-bit floating point arithmetic
+applyFilter(signal16, filter16);
+
+// Save filtered signal to file
+file.open("filtered_signal_float16.dat");
+for (FloatingPoint16 sample : signal16) {
+    file << sample << "\n";
+}
+file.close();
+
+// Compute FFT of filtered signal
+signalReal.resize(N);
+signalImag.resize(N);
+for (int i = 0; i < N; i++) {
+    signalReal[i] = signal16[i].toFloat();
+    signalImag[i] = 0.0;
+}
+FFT(signalReal, signalImag);
+
+// Compute magnitude spectrum of filtered signal
+magnitude.resize(N/2);
+for (int i = 0; i < N/2; i++) {
+magnitude[i] = sqrt(signalReal[i]*signalReal[i] + signalImag[i]*signalImag[i]) / N;
+}
+// Save magnitude spectrum to file
+file.open("magnitude_spectrum_float16.dat");
+for (float value : magnitude) {
+    file << value << "\n";
+}
+file.close();
+
+return 0;
